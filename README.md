@@ -4,7 +4,7 @@ Lumina is a production-grade, decentralized cashflow orchestration and treasury 
 
 ---
 
-## 🌌 The Vision
+## The Vision
 
 Micro-SMEs and independent contractors in emerging markets face steep financial friction: high local inflation, complex international client settlement, and lack of access to formal credit due to missing cashflow documentation. 
 
@@ -12,7 +12,7 @@ Micro-SMEs and independent contractors in emerging markets face steep financial 
 
 ---
 
-## ⚡ Key Features
+## Key Features
 
 *   **Autonomous Revenue Splitting:** 
     Configure deterministic, smart-contract-guided capital flows. Incoming revenue triggers automated split rules—routing precise percentages to designated operational budgets, partnership payouts, or locked savings reserves without manual intervention.
@@ -25,7 +25,7 @@ Micro-SMEs and independent contractors in emerging markets face steep financial 
 
 ---
 
-## ⛓️ Protocol Deployment
+## Protocol Deployment
 
 The Lumina core engine is officially deployed and verified on Celo Mainnet:
 
@@ -37,7 +37,7 @@ The Lumina core engine is officially deployed and verified on Celo Mainnet:
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 *   **Layer 1 Network:** [Celo Mainnet](https://celo.org/) (Chain ID: `42220`)
 *   **Mobile Interface:** [MiniPay](https://www.minipay.org/) (Native Web3 Mobile Browser Env)
