@@ -1,19 +1,23 @@
 {
-  "name": "dailyagi-contracts",
+  "name": "@lumina/contracts",
   "version": "1.0.0",
-  "description": "Smart contracts for DAILYAGI",
+  "type": "module",
+  "description": "LuminaVault: On-chain business savings & reputation for Celo",
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:mumbai": "hardhat run scripts/deploy.js --network mumbai"
+    "deploy:celo": "hardhat run scripts/deploy-vault.ts --network celo",
+    "deploy:alfajores": "hardhat run scripts/deploy-vault.ts --network celo-alfajores",
+    "verify": "hardhat verify --network celo"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
-    "hardhat": "^2.19.0"
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.22.0",
+    "dotenv": "^16.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.0"
   }
 }
-
-
