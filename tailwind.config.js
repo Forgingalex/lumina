@@ -8,52 +8,39 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'Space Grotesk', 'Sora', 'system-ui', 'sans-serif'],
-        display: ['Space Grotesk', 'Sora', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['"Space Grotesk"', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['"Space Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
-        lavender: {
-          50: '#e8c7ff',
-          100: '#d4a5e8',
-          200: '#c28dd9',
-          300: '#b075c7',
-          400: '#9d5db5',
-          500: '#a875c7',
-          600: '#8e5da8',
-          700: '#7a4d94',
-          800: '#663d80',
-          900: '#522d6c',
+        carbon: {
+          950: '#050505',
+          900: '#080808',
+          850: '#0b0b0b',
+          800: '#111111',
+          700: '#1A1A1A',
         },
-        accent: {
-          pink: '#ff9ff3',
-          purple: '#c56cf0',
-          lavender: '#c6a4ff',
+        lumina: {
+          emerald: '#35D07F',
+          blue: '#4facfe',
+          white: '#FFFFFF',
+          muted: '#8A8A8A',
         },
+      },
+      boxShadow: {
+        'emerald-glow': '0 0 48px rgba(53, 208, 127, 0.22)',
+        'blue-glow': '0 0 40px rgba(79, 172, 254, 0.18)',
       },
       animation: {
-        'gradient-slow': 'gradient-slow 15s ease infinite',
-        'float': 'float 6s ease-in-out infinite',
-        'glow-soft': 'glow-soft 3s ease-in-out infinite alternate',
+        'pulse-line': 'pulse-line 2.6s ease-in-out infinite',
       },
       keyframes: {
-        'gradient-slow': {
-          '0%, 100%': { backgroundPosition: '0% 50%' },
-          '50%': { backgroundPosition: '100% 50%' },
+        'pulse-line': {
+          '0%, 100%': { opacity: '0.45' },
+          '50%': { opacity: '1' },
         },
-        float: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-20px)' },
-        },
-        'glow-soft': {
-          '0%': { boxShadow: '0 0 20px rgba(255, 159, 243, 0.3)' },
-          '100%': { boxShadow: '0 0 40px rgba(197, 108, 240, 0.5)' },
-        },
-      },
-      backdropBlur: {
-        xs: '2px',
       },
     },
   },
   plugins: [],
 }
-

@@ -1,7 +1,27 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { http, createConfig, WagmiProvider } from 'wagmi'
+import { injected } from 'wagmi/connectors'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { celo } from 'viem/chains'
+import { celoSepoliaCustom, getActiveConfig } from './utils/constants'
 
+// ── Wagmi Config ──────────────────────────────────────────────────────
+const config = getActiveConfig()
+const wagmiConfig = createConfig({
+  chains: [celo, celoSepoliaCustom],
+  connectors: [injected()],
+  transports: {
+    [celo.id]: http(),
+    [celoSepoliaCustom.id]: http('https://rpc.ankr.com/celo_sepolia'),
+  },
+  ssr: true,
+})
+
+const queryClient = new QueryClient()
+
+// ── Theme Context ─────────────────────────────────────────────────────
 type Theme = 'light' | 'dark'
 
 interface ThemeContextType {
@@ -11,11 +31,10 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark')
 
   useEffect(() => {
-    // Set theme on mount
     try {
       const savedTheme = localStorage.getItem('theme') as Theme
       if (savedTheme) {
@@ -24,8 +43,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       } else {
         document.documentElement.classList.add('dark')
       }
-    } catch (e) {
-      // If localStorage fails, just use dark theme
+    } catch {
       document.documentElement.classList.add('dark')
     }
   }, [])
@@ -35,16 +53,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
     setTheme(newTheme)
     try {
       localStorage.setItem('theme', newTheme)
-    } catch (e) {
+    } catch {
       // Ignore localStorage errors
     }
     document.documentElement.classList.toggle('dark', newTheme === 'dark')
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeContext.Provider value={{ theme, toggleTheme }}>
+          {children}
+        </ThemeContext.Provider>
+      </QueryClientProvider>
+    </WagmiProvider>
   )
 }
 
@@ -56,4 +78,4 @@ export function useTheme() {
   return context
 }
 
-
+export { wagmiConfig }

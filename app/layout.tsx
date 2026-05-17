@@ -1,18 +1,17 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Providers } from './providers'
 
-const inter = Inter({ subsets: ['latin'] })
-
 export const metadata: Metadata = {
-  title: 'DAILYAGI - Decentralized AI Life Assistant',
-  description: 'AI agent for reminders, spending, and grocery automation on Web3',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-  },
+  title: 'Lumina | On-Chain Cashflow Orchestration',
+  description: 'A Celo and MiniPay financial operating system for programmable USDm revenue.',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#050505',
 }
 
 export default function RootLayout({
@@ -21,12 +20,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className="font-display antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>
   )
 }
-
-

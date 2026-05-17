@@ -1,350 +1,342 @@
 'use client'
 
-import { WalletButton } from './components/WalletButton'
-import { Dashboard } from './components/Dashboard'
-import { FloatingParticles } from './components/FloatingParticles'
-import { WaterGlassIcon } from './components/WaterGlassIcon'
-import { Navbar } from './components/Navbar'
-import { DemoBanner } from './components/DemoBanner'
-import { ChatModal } from './components/ChatModal'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { formatUnits } from 'viem'
+import {
+  ArrowUpFromLine, CheckCircle2, Loader2, Shield, X, Activity, Droplets, Copy, LogOut, Link2, Check
+} from 'lucide-react'
+import confetti from 'canvas-confetti'
+import { getActiveConfig } from './utils/constants'
 import { useWallet } from './hooks/useWallet'
-import { useTheme } from './providers'
-import { Sparkles, MessageCircle, ExternalLink, Bell, DollarSign, ShoppingCart } from 'lucide-react'
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import Link from 'next/link'
+import { useVault } from './hooks/useVault'
 
 export default function Home() {
-  const { isConnected, address, ensName, avatar } = useWallet()
-  const { theme, toggleTheme } = useTheme()
-  const [demoMode, setDemoMode] = useState(false)
-  const [chatModalOpen, setChatModalOpen] = useState(false)
+  const { address, isConnected, connectWallet, disconnectWallet, isConnecting, isMiniPay, chainId: walletChainId } = useWallet()
+  const {
+    balance, score,
+    depositStage, depositError, handleDeposit,
+    showSuccessToast, dismissToast,
+  } = useVault()
 
-  // Show dashboard if connected, has address, or in demo mode
-  const showDashboard = (isConnected || address) || demoMode
-  const demoAddress = demoMode ? '0x1234567890123456789012345678901234567890' : address
-  
-  // Debug logging in useEffect to avoid render issues
+  const config = getActiveConfig()
+  const [depositAmount, setDepositAmount] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  const displayBalance = parseFloat(formatUnits(balance, 18)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const numericScore = Number(score)
+  const isPending = depositStage === 'approving' || depositStage === 'depositing'
+
+  // Radial Liquid Fill Score (0 - 100) since max score is 1000
+  const fillPercentage = Math.min(Math.max((numericScore / 1000) * 100, 0), 100)
+
+  // Trigger Confetti on completion
   useEffect(() => {
-    console.log('Dashboard state:', { 
-      isConnected, 
-      address, 
-      showDashboard, 
-      demoMode,
-      hasAddress: !!address,
-      localStorage: typeof window !== 'undefined' ? localStorage.getItem('wallet_address') : null
-    })
-  }, [isConnected, address, showDashboard, demoMode])
-  
-  // Force re-render when address changes
-  useEffect(() => {
+    if (depositStage === 'confirmed') {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#35D07F', '#4A00E0', '#ffffff']
+      })
+    }
+  }, [depositStage])
+
+  const copyToClipboard = useCallback(() => {
     if (address) {
-      console.log('Address detected, dashboard should show:', address)
+      void navigator.clipboard.writeText(address)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     }
   }, [address])
-  
-  // Listen for wallet connection event
-  useEffect(() => {
-    const handleWalletConnected = () => {
-      console.log('Wallet connected event received, forcing re-render')
-      // Force component to re-check wallet state
-      const savedAddress = typeof window !== 'undefined' ? localStorage.getItem('wallet_address') : null
-      if (savedAddress) {
-        // Trigger a state update by checking localStorage
-        window.location.reload() // Reload to ensure state is synced
-      }
-    }
-    
-    window.addEventListener('walletConnected', handleWalletConnected)
-    return () => window.removeEventListener('walletConnected', handleWalletConnected)
-  }, [])
+
+  const reputationTier = useMemo(() => {
+    if (numericScore === 0) return 'PENDING INITIALIZATION'
+    if (numericScore <= 100) return 'TIER 1: EMERGING MERCHANT'
+    if (numericScore <= 500) return 'TIER 2: TRUSTED VENDOR'
+    return 'TIER 3: INSTITUTIONAL GRADE'
+  }, [numericScore])
+
+  // Simple identicon gradient based on address
+  const identiconGradient = useMemo(() => {
+    if (!address) return 'linear-gradient(135deg, #333 0%, #111 100%)'
+    const color1 = `#${address.slice(2, 8)}`
+    const color2 = `#${address.slice(36, 42)}`
+    return `linear-gradient(135deg, ${color1} 0%, ${color2} 100%)`
+  }, [address])
+
+  const isChainMismatch = walletChainId !== null && walletChainId !== config.CHAIN_ID
+  const networkStatusColor = isChainMismatch ? 'bg-yellow-500' : walletChainId === null ? 'bg-red-500' : 'bg-lumina-emerald'
 
   return (
-    <main className="min-h-screen relative overflow-hidden bg-gradient-to-br from-[#d4a5e8] via-[#c28dd9] to-[#a875c7] bg-[length:400%_400%] animate-gradient-slow">
-      {/* Floating Particles Background */}
-      <FloatingParticles />
+    <main className="min-h-screen pb-32 p-4 pt-12 text-white selection:bg-lumina-emerald/30 font-sans">
       
-      {/* Soft floating orbs - flowing light effect */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <motion.div
-          className="absolute top-10 left-5 w-64 h-64 rounded-full blur-3xl"
-          style={{ backgroundColor: 'rgba(212, 165, 232, 0.3)' }}
-          animate={{
-            y: [0, -30, 0],
-            x: [0, 20, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{
-            duration: 12,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-        <motion.div
-          className="absolute bottom-10 right-5 w-80 h-80 rounded-full blur-3xl"
-          style={{ backgroundColor: 'rgba(168, 117, 199, 0.25)' }}
-          animate={{
-            y: [0, 30, 0],
-            x: [0, -25, 0],
-            scale: [1, 1.3, 1],
-          }}
-          transition={{
-            duration: 15,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay: 2,
-          }}
-        />
-        <motion.div
-          className="absolute top-1/2 left-1/2 w-72 h-72 rounded-full blur-3xl"
-          style={{ backgroundColor: 'rgba(194, 141, 217, 0.2)' }}
-          animate={{
-            y: [0, -25, 0],
-            scale: [1, 1.25, 1],
-            rotate: [0, 180, 360],
-          }}
-          transition={{
-            duration: 18,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-      </div>
+      {/* ── Success Toast ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showSuccessToast && (
+          <motion.div initial={{ opacity: 0, y: -20, x: '-50%' }} animate={{ opacity: 1, y: 0, x: '-50%' }} exit={{ opacity: 0, y: -20, x: '-50%' }}
+            className="fixed left-1/2 top-10 z-50 flex w-[90%] max-w-sm items-center gap-3 rounded-lg border border-lumina-emerald/40 bg-carbon-900/90 p-4 shadow-emerald-glow backdrop-blur-xl font-sans">
+            <CheckCircle2 className="h-5 w-5 text-lumina-emerald" />
+            <div className="flex-1">
+              <p className="text-[10px] tracking-widest text-white/50 uppercase font-semibold">Handshake Confirmed</p>
+              <p className="text-sm font-medium text-white">Business cargo vaulted</p>
+            </div>
+            <button onClick={dismissToast} className="text-white/40 hover:text-white"><X className="h-4 w-4" /></button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <Navbar />
+      <div className="mx-auto max-w-2xl space-y-4">
+        
+        {/* ── Top Header / Network Indicator ─────────────────────── */}
+        <header className="flex justify-between items-center px-2 py-2">
+          <div className="flex items-center gap-2">
+            <div className={`h-2 w-2 rounded-full ${networkStatusColor} ${networkStatusColor === 'bg-lumina-emerald' ? 'animate-pulse shadow-emerald-glow' : ''}`}></div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">{config.NAME}</span>
+          </div>
+          <div className="text-[10px] font-mono tracking-widest text-white/30 uppercase bg-white/5 px-2 py-1 rounded">
+            CIP-64
+          </div>
+        </header>
 
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        {!showDashboard ? (
-          <div className="max-w-6xl mx-auto">
-            {/* Hero Section */}
-            <motion.div
-              className="text-center mb-16 mt-12 hero-backdrop relative"
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 1.2, ease: 'easeOut' }}
-            >
-              <motion.div
-                className="mb-8 relative inline-block"
-                animate={{ y: [0, -20, 0] }}
-                transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        {/* ── Identity Header (Zero Layout Shift Container) ─────────── */}
+        <section className="h-[76px] flex items-center justify-center">
+          <AnimatePresence mode="wait">
+            {isConnected && address ? (
+              <motion.div 
+                key="connected"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="w-full glass-panel relative flex h-full items-center justify-between rounded-2xl p-4 sm:p-5 border border-white/10 backdrop-blur-[16px] max-[380px]:px-3"
               >
-                <motion.div
-                  className="absolute inset-0 blur-2xl opacity-40"
-                  style={{ backgroundColor: 'rgba(255, 255, 255, 0.4)' }}
-                  animate={{ opacity: [0.3, 0.5, 0.3], scale: [1, 1.05, 1] }}
-                  transition={{ duration: 5, repeat: Infinity }}
-                />
-                <Sparkles className="w-28 h-28 relative z-10 text-white" style={{ filter: 'drop-shadow(0 2px 12px rgba(255, 255, 255, 0.4))' }} />
-              </motion.div>
-              <motion.h2
-                className="text-4xl sm:text-5xl md:text-7xl lg:text-9xl font-bold font-display mb-6 premium-heading relative z-10"
-                data-text="Welcome to DAILYAGI"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1.2, delay: 0.3, ease: 'easeOut' }}
-                style={{
-                  textShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-                }}
-              >
-                Welcome to DAILYAGI
-              </motion.h2>
-              <motion.p
-                className="text-base sm:text-lg md:text-xl lg:text-2xl text-white mb-4 font-light relative z-10 px-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.5, ease: 'easeOut' }}
-                style={{
-                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
-                }}
-              >
-                Your decentralized AI life assistant
-              </motion.p>
-              <motion.p
-                className="text-sm sm:text-base md:text-lg max-w-2xl mx-auto relative z-10 px-4"
-                style={{ color: '#f3e8ff', textShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.7, ease: 'easeOut' }}
-              >
-                Manage reminders, track spending, and organize groceries with AI-powered automation
-              </motion.p>
-              <motion.div
-                className="mt-8 flex items-center justify-center gap-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.9, ease: 'easeOut' }}
-              >
-                <motion.button
-                  onClick={() => setDemoMode(true)}
-                  className="group relative flex items-center gap-2 px-6 py-3 rounded-xl text-white text-sm font-medium transition-all duration-300 hover:scale-105 overflow-hidden glass border border-white/25"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                  <span className="relative z-10">Try Demo</span>
-                </motion.button>
-              </motion.div>
-            </motion.div>
-
-            {/* Feature Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              {[
-                { icon: Bell, title: 'Smart Reminders', desc: 'AI-powered scheduling and notifications' },
-                { icon: DollarSign, title: 'Spending Insights', desc: 'Track & analyze your expenses' },
-                { icon: ShoppingCart, title: 'Grocery Lists', desc: 'Vision AI shopping assistant' },
-              ].map((feature, index) => {
-                const Icon = feature.icon
-                return (
-                  <motion.div
-                    key={index}
-                    className="group relative p-8 glass-strong rounded-2xl border border-white/25 transition-all duration-500"
-                    initial={{ opacity: 0, y: 40 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.9 + index * 0.15, ease: 'easeOut' }}
-                    whileHover={{ 
-                      y: -16, 
-                      scale: 1.04,
-                    }}
-                    style={{
-                      boxShadow: '0 16px 64px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
-                    }}
-                  >
-                    <motion.div
-                      className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)',
-                      }}
-                    />
-                    <div className="relative z-10">
-                      <WaterGlassIcon icon={Icon} size={32} className="mb-4 sm:mb-6" />
-                      <h3 className="text-xl sm:text-2xl font-bold font-display text-white mb-2 sm:mb-3">{feature.title}</h3>
-                      <p className="text-xs sm:text-sm leading-relaxed" style={{ color: '#f3e8ff' }}>{feature.desc}</p>
+                <div className="flex items-center gap-3 sm:gap-4 max-[380px]:gap-2">
+                  <div 
+                    className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/20 shadow-inner shrink-0" 
+                    style={{ background: identiconGradient }}
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs sm:text-sm font-display font-medium text-white tracking-wider">
+                        {`${address.slice(0, 6)}...${address.slice(-4)}`}
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-lumina-emerald animate-pulse shadow-emerald-glow shrink-0"></span>
+                        <span className="text-[8px] sm:text-[9px] text-white/40 uppercase tracking-widest font-semibold">ACTIVE</span>
+                      </div>
                     </div>
-                  </motion.div>
-                )
-              })}
+                    <p className="text-[9px] sm:text-[10px] font-bold tracking-widest text-white/40 uppercase mt-0.5 max-[380px]:text-[8px]">TRUST ANCHOR ACTIVE</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <div className="relative flex items-center justify-center">
+                    <button onClick={copyToClipboard} className="p-2 sm:p-2.5 rounded-xl hover:bg-white/10 transition-colors group relative" aria-label="Copy Address">
+                      {copied ? (
+                        <Check className="h-4 w-4 sm:h-5 sm:w-5 text-lumina-emerald" />
+                      ) : (
+                        <Copy className="h-4 w-4 sm:h-5 sm:w-5 text-white/50 group-hover:text-white" />
+                      )}
+                    </button>
+                    <AnimatePresence>
+                      {copied && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 5 }} 
+                          animate={{ opacity: 1, y: -25 }} 
+                          exit={{ opacity: 0 }} 
+                          className="absolute text-[8px] sm:text-[10px] bg-white text-black px-2 py-1 rounded font-bold tracking-widest pointer-events-none whitespace-nowrap z-30"
+                        >
+                          COPIED
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  
+                  <button onClick={disconnectWallet} className="p-2 sm:p-2.5 rounded-xl hover:bg-[#ff4d4d]/20 text-white/50 hover:text-[#ff4d4d] transition-colors group" aria-label="Disconnect Wallet">
+                    <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.button 
+                key="disconnected"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                onClick={connectWallet} 
+                disabled={isConnecting}
+                className="w-full glass-panel relative flex h-full items-center justify-center rounded-2xl transition-all border border-lumina-emerald/30 hover:border-lumina-emerald/80 hover:shadow-[0_0_24px_rgba(53,208,127,0.2)] overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-lumina-emerald/5 group-hover:bg-lumina-emerald/10 transition-colors"></div>
+                <div className="relative z-10 flex items-center gap-3">
+                  {isConnecting ? (
+                    <Loader2 className="h-5 w-5 text-lumina-emerald animate-spin" />
+                  ) : (
+                    <Link2 className="h-5 w-5 text-lumina-emerald animate-pulse" />
+                  )}
+                  <span className="text-[11px] sm:text-xs font-bold tracking-[0.2em] text-lumina-emerald uppercase">
+                    {isConnecting ? 'SYNCING IDENTITY...' : '[ UNLINKED ] ACTIVATE BUSINESS IDENTITY'}
+                  </span>
+                </div>
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </section>
+
+        {/* ── Bento Grid ────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-4">
+          
+          {/* Revenue Pulse (Wide Card) */}
+          <div className="col-span-2 glass-panel rounded-3xl p-6 relative overflow-hidden group border border-white/10">
+            <div className="absolute top-0 right-0 p-6 opacity-10">
+              <Activity className="w-24 h-24" />
+            </div>
+            
+            <p className="text-[11px] font-semibold tracking-widest text-white/40 uppercase mb-2">Vault Balance</p>
+            <div className="flex items-baseline gap-2 mb-6 relative z-10">
+              <span className="font-display text-5xl sm:text-6xl text-white tracking-tight">{displayBalance}</span>
+              <span className="font-display text-lg text-white/40 uppercase tracking-widest">USDC</span>
             </div>
 
-            {/* CTA Section */}
-            <motion.div
-              className="glass-strong rounded-3xl p-6 sm:p-8 md:p-12 border border-white/25 text-center"
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 1.4 }}
-              whileHover={{ scale: 1.02, y: -4 }}
-            >
-              <motion.h3
-                className="text-2xl sm:text-3xl font-bold font-display text-white mb-4"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.6 }}
-              >
-                Ready to get started?
-              </motion.h3>
-              <motion.p
-                className="mb-6 sm:mb-8 text-base sm:text-lg px-4"
-                style={{ color: '#f3e8ff' }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.7 }}
-              >
-                Connect your wallet to unlock the full power of DAILYAGI
-              </motion.p>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1.8, type: 'spring', stiffness: 200 }}
-              >
-                <WalletButton />
-              </motion.div>
-            </motion.div>
+            {/* Animated SVG Path for Cashflow */}
+            <div className="h-16 w-full relative -mx-2">
+              <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 400 60">
+                <motion.path 
+                  d="M0,50 C40,50 60,10 100,10 C140,10 160,40 200,40 C240,40 260,20 300,20 C340,20 360,50 400,50" 
+                  fill="none" 
+                  stroke="url(#pulse-gradient)" 
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 1 }}
+                  transition={{ duration: 2.5, ease: "easeInOut" }}
+                  className="drop-shadow-[0_0_8px_rgba(53,208,127,0.8)]"
+                />
+                <defs>
+                  <linearGradient id="pulse-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="rgba(53,208,127,0.1)" />
+                    <stop offset="50%" stopColor="#35D07F" />
+                    <stop offset="100%" stopColor="rgba(53,208,127,0.1)" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
           </div>
-        ) : (
-          <>
-            {demoMode && !isConnected && (
-              <DemoBanner onExit={() => setDemoMode(false)} />
-            )}
-            
-            {/* Floating Action Buttons - Bottom Right */}
-            {showDashboard && (
-              <div className="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-40 flex flex-col gap-3 items-end">
-                {/* Sentient Chat Button */}
-                <motion.a
-                  href="https://sentient.chat/?agent=dailyAGI"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-3 rounded-xl glass-strong border border-white/25 shadow-2xl flex items-center gap-2 text-white font-medium"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(255, 159, 243, 0.3) 0%, rgba(197, 108, 240, 0.3) 100%)',
-                  }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.2 }}
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span className="text-sm">Sentient</span>
-                </motion.a>
-                
-                {/* Chat Modal Button */}
-                <motion.button
-                  onClick={() => setChatModalOpen(true)}
-                  className="p-4 rounded-full glass-strong border border-white/25 shadow-2xl"
-                  style={{
-                    background: 'linear-gradient(135deg, #ff9ff3 0%, #c56cf0 100%)',
-                    boxShadow: '0 8px 32px rgba(255, 159, 243, 0.4)',
-                  }}
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  whileTap={{ scale: 0.9 }}
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1 }}
-                >
-                  <MessageCircle className="w-6 h-6 text-white" />
-                </motion.button>
-              </div>
-            )}
-            
-            <ChatModal 
-              isOpen={chatModalOpen} 
-              onClose={() => setChatModalOpen(false)}
-              demoMode={demoMode}
-            />
-            <Dashboard
-              address={demoAddress}
-              ensName={demoMode ? 'Demo User' : ensName}
-              avatar={avatar}
-            />
-          </>
-        )}
-      </div>
-      
-      {/* Footer with Sentient Badge */}
-      <footer className="relative z-10 border-t border-white/25 glass-strong mt-12">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-white/70 text-sm">
-              © 2025 dailyAGI. Built with privacy and decentralization in mind.
-            </p>
-            <motion.div
-              className="flex items-center gap-2 text-white/60 text-sm"
-              whileHover={{ scale: 1.05 }}
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Powered by</span>
-              <a
-                href="https://sentient.xyz"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white/80 hover:text-white transition-colors font-medium"
-              >
-                Sentient AGI
-              </a>
-            </motion.div>
+
+          {/* Reputation Card (Square, Radial Liquid-Fill) */}
+          <div className="col-span-1 glass-panel rounded-3xl p-5 relative overflow-hidden flex flex-col justify-between aspect-square border border-white/10">
+            <div className="flex justify-between items-start z-10">
+              <p className="text-[10px] font-bold tracking-widest text-white/50 uppercase leading-tight">Reputation<br/>Score</p>
+              <Droplets className="w-4 h-4 text-lumina-emerald/50" />
+            </div>
+
+            <div className="z-10 mt-auto">
+              {numericScore === 0 ? (
+                <div className="animate-pulse">
+                  <p className="font-display text-2xl text-lumina-emerald tracking-tight">0</p>
+                </div>
+              ) : (
+                <>
+                  <p className="font-display text-5xl text-white tracking-tight drop-shadow-md">{numericScore}</p>
+                </>
+              )}
+              <p className="text-[8px] sm:text-[9px] text-white/50 uppercase mt-1.5 tracking-[0.15em] font-bold">{reputationTier}</p>
+            </div>
+
+            {/* Liquid Fill Animation */}
+            <div className="absolute inset-0 z-0 opacity-20 pointer-events-none overflow-hidden rounded-3xl">
+              <motion.div 
+                className="absolute w-[200%] h-[200%] -left-[50%] bg-lumina-emerald/40"
+                style={{ 
+                  borderRadius: '40%',
+                  top: `${100 - fillPercentage}%` 
+                }}
+                animate={{
+                  rotate: [0, 360]
+                }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 8,
+                  ease: "linear"
+                }}
+              />
+              <motion.div 
+                className="absolute w-[200%] h-[200%] -left-[50%] bg-lumina-emerald/60"
+                style={{ 
+                  borderRadius: '43%',
+                  top: `${100 - fillPercentage}%` 
+                }}
+                animate={{
+                  rotate: [360, 0]
+                }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 10,
+                  ease: "linear"
+                }}
+              />
+            </div>
           </div>
+
+          {/* Network Intel Card */}
+          <div className="col-span-1 glass-panel rounded-3xl p-5 relative overflow-hidden flex flex-col justify-between aspect-square border border-white/10">
+            <p className="text-[10px] font-bold tracking-widest text-white/50 uppercase">Network</p>
+            <div>
+              <p className="text-xs text-white/80 font-mono mb-2">CHAIN: 42220</p>
+              <div className="h-px w-full bg-white/10 mb-2"></div>
+              <p className="text-[10px] text-white/40 font-mono">GAS: 0 USDC</p>
+              <p className="text-[10px] text-lumina-emerald font-mono mt-1 uppercase tracking-widest font-bold">CIP-64 Abstraction</p>
+            </div>
+          </div>
+
         </div>
-      </footer>
+      </div>
+
+      {/* ── Fixed Handshake Bar (Bottom) ────────────────────────────── */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 z-40 bg-gradient-to-t from-black via-black/80 to-transparent pt-12 pb-6">
+        <div className="mx-auto max-w-2xl">
+          <div className="glass-panel p-2 rounded-2xl flex items-center gap-2 border-white/10 shadow-2xl backdrop-blur-3xl bg-black/40">
+            <div className="relative flex-1">
+              <input 
+                type="number" 
+                value={depositAmount} 
+                onChange={(e) => setDepositAmount(e.target.value)} 
+                placeholder="0.00"
+                className="w-full bg-transparent px-4 py-3 font-display text-2xl text-white outline-none placeholder:text-white/20"
+              />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-white/30 uppercase tracking-widest font-sans">USDC</div>
+            </div>
+
+            <button 
+              onClick={() => handleDeposit(depositAmount)} 
+              disabled={isPending || !depositAmount}
+              className="group relative flex items-center justify-center gap-2 h-14 px-8 rounded-xl bg-lumina-emerald text-black font-bold text-xs tracking-widest uppercase transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 shadow-[0_0_24px_rgba(53,208,127,0.3)] shrink-0"
+            >
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowUpFromLine className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">
+                {depositStage === 'approving' ? 'AUTHORIZING CARGO...' : depositStage === 'depositing' ? 'STITCHING CAPITAL...' : 'Confirm Handshake'}
+              </span>
+              <span className="sm:hidden">
+                {depositStage === 'approving' ? 'AUTH CARGO...' : depositStage === 'depositing' ? 'STITCHING...' : 'Confirm'}
+              </span>
+            </button>
+          </div>
+          
+          {depositError && (
+            <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className="mt-3 text-center text-[10px] text-red-400 font-bold uppercase tracking-widest font-sans">
+              {depositError}
+            </motion.p>
+          )}
+        </div>
+      </div>
+
     </main>
   )
 }
