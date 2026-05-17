@@ -136,3 +136,10 @@ export type WithdrawalStatus =
   | { readonly state: 'none' }
   | { readonly state: 'pending'; readonly unlockAt: bigint }
   | { readonly state: 'ready' }
+
+export interface TreasuryData {
+  readonly usdc: bigint
+  readonly cusd: bigint
+  readonly usdt: bigint
+  readonly aggregateBalance: bigint
+}

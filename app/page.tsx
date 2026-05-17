@@ -14,7 +14,7 @@ import { useVault } from './hooks/useVault'
 export default function Home() {
   const { address, isConnected, connectWallet, disconnectWallet, isConnecting, isMiniPay, chainId: walletChainId } = useWallet()
   const {
-    balance, score,
+    balance, score, treasuryData,
     depositStage, depositError, handleDeposit,
     showSuccessToast, dismissToast,
   } = useVault()
@@ -23,12 +23,14 @@ export default function Home() {
   const [depositAmount, setDepositAmount] = useState('')
   const [copied, setCopied] = useState(false)
 
-  const displayBalance = parseFloat(formatUnits(balance, 18)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const combinedTotal = balance + treasuryData.aggregateBalance
+  const displayBalance = parseFloat(formatUnits(combinedTotal, 18)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const numericScore = Number(score)
   const isPending = depositStage === 'approving' || depositStage === 'depositing'
 
   // Radial Liquid Fill Score (0 - 100) since max score is 1000
-  const fillPercentage = Math.min(Math.max((numericScore / 1000) * 100, 0), 100)
+  // Reacts to the combined activity of all supported assets
+  const fillPercentage = Math.min(Math.max(((numericScore + Number(formatUnits(combinedTotal, 18))) / 1000) * 100, 0), 100)
 
   // Trigger Confetti on completion
   useEffect(() => {
@@ -51,11 +53,29 @@ export default function Home() {
   }, [address])
 
   const reputationTier = useMemo(() => {
-    if (numericScore === 0) return 'PENDING INITIALIZATION'
+    const allBalancesAreZero = balance === 0n && treasuryData.aggregateBalance === 0n
+    if (numericScore === 0 || allBalancesAreZero) return 'INITIATING REPUTATION'
     if (numericScore <= 100) return 'TIER 1: EMERGING MERCHANT'
     if (numericScore <= 500) return 'TIER 2: TRUSTED VENDOR'
     return 'TIER 3: INSTITUTIONAL GRADE'
-  }, [numericScore])
+  }, [numericScore, balance, treasuryData.aggregateBalance])
+
+  const activeFeeCurrencyLabel = useMemo(() => {
+    if (treasuryData.usdc > 0n) return 'USDC'
+    if (treasuryData.cusd > 0n) return 'cUSD'
+    if (treasuryData.usdt > 0n) return 'USDT'
+    return 'USDC'
+  }, [treasuryData])
+
+  const dynamicPath = useMemo(() => {
+    // A base height that changes depending on the balance value
+    const totalVal = parseFloat(formatUnits(combinedTotal, 18))
+    const scale = Math.max(0.2, Math.min(2.0, totalVal / 100))
+    const p1 = Math.max(5, 50 - 40 * scale)
+    const p2 = Math.max(5, 50 - 10 * scale)
+    const p3 = Math.max(5, 50 - 30 * scale)
+    return `M0,50 C40,50 60,${p1} 100,${p1} C140,${p1} 160,${p2} 200,${p2} C240,${p2} 260,${p3} 300,${p3} C340,${p3} 360,50 400,50`
+  }, [combinedTotal])
 
   // Simple identicon gradient based on address
   const identiconGradient = useMemo(() => {
@@ -194,17 +214,30 @@ export default function Home() {
               <Activity className="w-24 h-24" />
             </div>
             
-            <p className="text-[11px] font-semibold tracking-widest text-white/40 uppercase mb-2">Vault Balance</p>
-            <div className="flex items-baseline gap-2 mb-6 relative z-10">
-              <span className="font-display text-5xl sm:text-6xl text-white tracking-tight">{displayBalance}</span>
-              <span className="font-display text-lg text-white/40 uppercase tracking-widest">USDC</span>
+            <p className="text-[11px] font-semibold tracking-widest text-white/40 uppercase mb-2 font-display">Operational Capital</p>
+            <div className="flex items-baseline gap-1 mb-2 relative z-10 font-display">
+              <span className="font-display text-3xl sm:text-4xl text-white/30 font-bold mr-1">$</span>
+              <span className="font-display text-5xl sm:text-6xl text-white tracking-tight font-medium">{displayBalance}</span>
+              <span className="font-display text-[9px] tracking-widest text-white/40 uppercase font-semibold ml-3 bg-white/5 px-2 py-0.5 rounded border border-white/5">STABLE ASSETS</span>
+            </div>
+
+            {/* Liquidity Breakdown */}
+            <div className="mb-6 flex flex-wrap gap-2 items-center text-[10px] font-mono text-white/60 tracking-wider relative z-10">
+              <span className="text-white/40 uppercase font-bold tracking-widest bg-white/5 px-1.5 py-0.5 rounded font-display text-[8px] border border-white/5">Split:</span>
+              <span className="text-lumina-emerald">{parseFloat(formatUnits(treasuryData.usdc, 18)).toFixed(2)} USDC</span>
+              <span className="text-white/20">|</span>
+              <span className="text-lumina-emerald">{parseFloat(formatUnits(treasuryData.cusd, 18)).toFixed(2)} cUSD</span>
+              <span className="text-white/20">|</span>
+              <span className="text-lumina-emerald">{parseFloat(formatUnits(treasuryData.usdt, 18)).toFixed(2)} USDT</span>
+              <span className="text-white/20">|</span>
+              <span className="text-white/40">Vaulted: {parseFloat(formatUnits(balance, 18)).toFixed(2)} USDC</span>
             </div>
 
             {/* Animated SVG Path for Cashflow */}
             <div className="h-16 w-full relative -mx-2">
               <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 400 60">
                 <motion.path 
-                  d="M0,50 C40,50 60,10 100,10 C140,10 160,40 200,40 C240,40 260,20 300,20 C340,20 360,50 400,50" 
+                  d={dynamicPath} 
                   fill="none" 
                   stroke="url(#pulse-gradient)" 
                   strokeWidth="3"
@@ -284,9 +317,9 @@ export default function Home() {
           <div className="col-span-1 glass-panel rounded-3xl p-5 relative overflow-hidden flex flex-col justify-between aspect-square border border-white/10">
             <p className="text-[10px] font-bold tracking-widest text-white/50 uppercase">Network</p>
             <div>
-              <p className="text-xs text-white/80 font-mono mb-2">CHAIN: 42220</p>
+              <p className="text-xs text-white/80 font-mono mb-2">CHAIN: {config.CHAIN_ID}</p>
               <div className="h-px w-full bg-white/10 mb-2"></div>
-              <p className="text-[10px] text-white/40 font-mono">GAS: 0 USDC</p>
+              <p className="text-[10px] text-white/40 font-mono">GAS: 0 {activeFeeCurrencyLabel}</p>
               <p className="text-[10px] text-lumina-emerald font-mono mt-1 uppercase tracking-widest font-bold">CIP-64 Abstraction</p>
             </div>
           </div>

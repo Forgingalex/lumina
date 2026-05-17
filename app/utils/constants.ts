@@ -42,6 +42,20 @@ export const CONFIG = {
     VAULT: '0x92F849B5542656353efb979F3e1872187Cc7dC8E' as Address,
     TOKEN: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C' as Address, // USDC
     ADAPTER: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B' as Address, // USDC Adapter
+    STABLES: {
+      USDC: {
+        TOKEN: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C' as Address,
+        ADAPTER: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B' as Address,
+      },
+      cUSD: {
+        TOKEN: '0x765DE816845861e75A25fCA122bb6898B8B1282a' as Address,
+        ADAPTER: '0x765DE816845861e75A25fCA122bb6898B8B1282a' as Address,
+      },
+      USDT: {
+        TOKEN: '0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e' as Address,
+        ADAPTER: '0x0e2a3e05bc9a16f5292a6170456a710cb89c6f72' as Address,
+      },
+    },
     RPC: 'https://forno.celo.org',
   },
   sepolia: {
@@ -50,6 +64,20 @@ export const CONFIG = {
     VAULT: '0xBC1163Ea4994A45385558eD5538B2b92DC4aa7cD' as Address,
     TOKEN: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B' as Address, // USDC
     ADAPTER: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B' as Address,
+    STABLES: {
+      USDC: {
+        TOKEN: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B' as Address,
+        ADAPTER: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B' as Address,
+      },
+      cUSD: {
+        TOKEN: '0x874069Fa1Eb16D44d622F2e0Ca25eeA17227FC71' as Address,
+        ADAPTER: '0x874069Fa1Eb16D44d622F2e0Ca25eeA17227FC71' as Address,
+      },
+      USDT: {
+        TOKEN: '0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e' as Address,
+        ADAPTER: '0x0e2a3e05bc9a16f5292a6170456a710cb89c6f72' as Address,
+      },
+    },
     RPC: 'https://rpc.ankr.com/celo_sepolia',
   },
 } as const

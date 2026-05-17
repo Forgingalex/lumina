@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useState, useMemo } from 'react'
-import { createPublicClient, http, encodeFunctionData, parseUnits, formatUnits, type Address } from 'viem'
+import { createPublicClient, http, encodeFunctionData, parseUnits, type Address } from 'viem'
 import {
   getActiveConfig,
   LUMINA_VAULT_ABI,
   USDC_ABI,
 } from '../utils/constants'
 import { useWallet } from './useWallet'
+import type { TreasuryData } from '../../types'
 
 export type DepositStage = 'idle' | 'approving' | 'depositing' | 'confirmed' | 'error'
 
@@ -26,20 +27,66 @@ export function useVault() {
   const [depositStage, setDepositStage] = useState<DepositStage>('idle')
   const [depositError, setDepositError] = useState<string | null>(null)
   const [showSuccessToast, setShowSuccessToast] = useState(false)
+  const [treasuryData, setTreasuryData] = useState<TreasuryData>({
+    usdc: 0n,
+    cusd: 0n,
+    usdt: 0n,
+    aggregateBalance: 0n,
+  })
 
   // ── Sync Business Profile ──────────────────────────────────────────
   const syncProfile = useCallback(async () => {
     if (!address) return
     try {
-      const result = await publicClient.readContract({
-        address: config.VAULT,
-        abi: LUMINA_VAULT_ABI,
-        functionName: 'getMerchantProfile',
-        args: [address],
-      })
-      const [vBalance, vScore] = result as readonly [bigint, bigint, bigint]
+      const stables = config.STABLES
+      const [usdcBal, cusdBal, usdtBal, vaultProfile] = await Promise.all([
+        publicClient.readContract({
+          address: stables.USDC.TOKEN,
+          abi: USDC_ABI,
+          functionName: 'balanceOf',
+          args: [address],
+        }).catch(err => {
+          console.error('USDC balance fetch error:', err)
+          return 0n
+        }),
+        publicClient.readContract({
+          address: stables.cUSD.TOKEN,
+          abi: USDC_ABI,
+          functionName: 'balanceOf',
+          args: [address],
+        }).catch(err => {
+          console.error('cUSD balance fetch error:', err)
+          return 0n
+        }),
+        publicClient.readContract({
+          address: stables.USDT.TOKEN,
+          abi: USDC_ABI,
+          functionName: 'balanceOf',
+          args: [address],
+        }).catch(err => {
+          console.error('USDT balance fetch error:', err)
+          return 0n
+        }),
+        publicClient.readContract({
+          address: config.VAULT,
+          abi: LUMINA_VAULT_ABI,
+          functionName: 'getMerchantProfile',
+          args: [address],
+        }).catch(err => {
+          console.error('LuminaVault sync failure:', err)
+          return [0n, 0n, 0n] as const
+        })
+      ])
+
+      const [vBalance, vScore] = vaultProfile as readonly [bigint, bigint, bigint]
       setBalance(vBalance ?? 0n)
       setScore(vScore ?? 0n)
+      setTreasuryData({
+        usdc: usdcBal,
+        cusd: cusdBal,
+        usdt: usdtBal,
+        aggregateBalance: usdcBal + cusdBal + usdtBal,
+      })
     } catch (e) {
       console.error('LuminaVault sync failure:', e)
     }
@@ -66,6 +113,39 @@ export function useVault() {
     try {
       const amount = parseUnits(amountHuman, 18)
       
+      // Fetch latest balances concurrently to choose the best gas currency
+      const stables = config.STABLES
+      const [usdcBal, cusdBal, usdtBal] = await Promise.all([
+        publicClient.readContract({
+          address: stables.USDC.TOKEN,
+          abi: USDC_ABI,
+          functionName: 'balanceOf',
+          args: [address],
+        }).catch(() => 0n),
+        publicClient.readContract({
+          address: stables.cUSD.TOKEN,
+          abi: USDC_ABI,
+          functionName: 'balanceOf',
+          args: [address],
+        }).catch(() => 0n),
+        publicClient.readContract({
+          address: stables.USDT.TOKEN,
+          abi: USDC_ABI,
+          functionName: 'balanceOf',
+          args: [address],
+        }).catch(() => 0n),
+      ])
+
+      // Detect which token has a non-zero balance (prioritizing USDC, then cUSD, then USDT)
+      let feeCurrency: Address = stables.USDC.ADAPTER
+      if (usdcBal > 0n) {
+        feeCurrency = stables.USDC.ADAPTER
+      } else if (cusdBal > 0n) {
+        feeCurrency = stables.cUSD.ADAPTER
+      } else if (usdtBal > 0n) {
+        feeCurrency = stables.USDT.ADAPTER
+      }
+
       // Stage 1: Validate Allowance
       const allowance = await publicClient.readContract({
         address: config.TOKEN,
@@ -85,7 +165,7 @@ export function useVault() {
           account: address,
           to: config.TOKEN,
           data: approveData,
-          feeCurrency: config.ADAPTER, // CIP-64 Gasless logic
+          feeCurrency, // CIP-64 Gasless logic
         } as any)
 
         await publicClient.waitForTransactionReceipt({ hash: approveHash })
@@ -103,7 +183,7 @@ export function useVault() {
         account: address,
         to: config.VAULT,
         data: depositData,
-        feeCurrency: config.ADAPTER, // CIP-64 Gasless logic
+        feeCurrency, // CIP-64 Gasless logic
       } as any)
 
       await publicClient.waitForTransactionReceipt({ hash: depositHash })
@@ -128,6 +208,7 @@ export function useVault() {
   return {
     balance,
     score,
+    treasuryData,
     depositStage,
     depositError,
     showSuccessToast,
