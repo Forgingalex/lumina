@@ -39,7 +39,7 @@ export const CONFIG = {
   mainnet: {
     NAME: 'CELO MAINNET',
     CHAIN_ID: 42220,
-    VAULT: '0x92F849B5542656353efb979F3e1872187Cc7dC8E' as Address,
+    VAULT: '0x962fc12bfA3D64e4Ea8c2F7CE92Ab9fCc064CCEF' as Address,
     TOKEN: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C' as Address, // USDC
     ADAPTER: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B' as Address, // USDC Adapter
     STABLES: {
@@ -121,7 +121,20 @@ export const LUMINA_VAULT_ABI = [
     type: 'function',
     name: 'deposit',
     stateMutability: 'nonpayable',
-    inputs: [{ name: 'amount', type: 'uint256' }],
+    inputs: [
+      { name: 'token', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'withdraw',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'token', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
     outputs: [],
   },
   {
@@ -130,10 +143,19 @@ export const LUMINA_VAULT_ABI = [
     stateMutability: 'view',
     inputs: [{ name: 'merchant', type: 'address' }],
     outputs: [
-      { name: 'balance', type: 'uint256' },
       { name: 'score', type: 'uint256' },
-      { name: 'lastActivity', type: 'uint256' },
+      { name: 'totalVolume', type: 'uint256' },
     ],
+  },
+  {
+    type: 'function',
+    name: 'balances',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'merchant', type: 'address' },
+      { name: 'token', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
   },
 ] as const
 

@@ -6,12 +6,13 @@ import { getAddress, isAddress, type Address } from 'viem'
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CELO_CHAIN_ID = 42220
-const USDC_TOKEN = '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B'
-const USDC_DECIMALS = 18n
-const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-
-/** 90 days of history */
 const LOOKBACK_DAYS = 90
+
+const SUPPORTED_TOKENS = {
+  USDC: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C'.toLowerCase(),
+  cUSD: '0x765DE816845861e75A25fCA122bb6898B8B1282a'.toLowerCase(),
+  USDT: '0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e'.toLowerCase(),
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Types
@@ -99,10 +100,11 @@ export interface StatementResponse {
 //  Utilities (Deterministic BigInt Math)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const formatUsdc = (value: bigint): string => {
-  const whole = value / 10n ** USDC_DECIMALS
-  const frac = value % 10n ** USDC_DECIMALS
-  const fracStr = frac.toString().padStart(Number(USDC_DECIMALS), '0').slice(0, 6)
+const formatNormalizedAmount = (value: bigint): string => {
+  const decimals = 18n
+  const whole = value / 10n ** decimals
+  const frac = value % 10n ** decimals
+  const fracStr = frac.toString().padStart(Number(decimals), '0').slice(0, 6)
   const sign = value < 0n ? '-' : ''
   const absWhole = whole < 0n ? -whole : whole
   return `${sign}${absWhole.toString()}.${fracStr}`
@@ -183,17 +185,15 @@ const fetchTransfers = async (
   apiKey: string
 ): Promise<TransferRecord[]> => {
   const lowerMerchant = merchantAddress.toLowerCase()
-  const endDate = new Date()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - LOOKBACK_DAYS)
 
   const url = new URL(
     `https://api.covalenthq.com/v1/${CELO_CHAIN_ID}/address/${lowerMerchant}/transfers_v2/`
   )
-  url.searchParams.set('contract-address', USDC_TOKEN)
   url.searchParams.set('starting-block', 'earliest')
   url.searchParams.set('ending-block', 'latest')
-  url.searchParams.set('page-size', '500')
+  url.searchParams.set('page-size', '1000')
 
   const response = await fetch(url.toString(), {
     headers: {
@@ -221,6 +221,15 @@ const fetchTransfers = async (
       const txDate = new Date(transfer.block_signed_at)
       if (txDate < startDate) continue
 
+      const contractAddr = transfer.contract_address.toLowerCase()
+      if (
+        contractAddr !== SUPPORTED_TOKENS.USDC &&
+        contractAddr !== SUPPORTED_TOKENS.cUSD &&
+        contractAddr !== SUPPORTED_TOKENS.USDT
+      ) {
+        continue
+      }
+
       const from = transfer.from_address.toLowerCase()
       const to = transfer.to_address.toLowerCase()
       const isInbound = to === lowerMerchant
@@ -228,11 +237,21 @@ const fetchTransfers = async (
 
       if (!isInbound && !isOutbound) continue
 
+      // Normalize all token amounts to 18 decimals
+      let amountRaw = BigInt(transfer.delta || '0')
+      const decimals = transfer.contract_decimals || 18
+      let amountScaled = amountRaw
+      if (decimals < 18) {
+        amountScaled = amountRaw * (10n ** BigInt(18 - decimals))
+      } else if (decimals > 18) {
+        amountScaled = amountRaw / (10n ** BigInt(decimals - 18))
+      }
+
       records.push({
         hash: transfer.tx_hash,
         from: transfer.from_address,
         to: transfer.to_address,
-        amount: BigInt(transfer.delta || '0'),
+        amount: amountScaled,
         timestamp: transfer.block_signed_at,
         direction: isInbound ? 'inbound' : 'outbound',
       })
@@ -275,7 +294,6 @@ const aggregateMonthly = (records: readonly TransferRecord[]): MonthlyBucket[] =
 const computeMRR = (monthlyBuckets: readonly MonthlyBucket[]): bigint => {
   if (monthlyBuckets.length === 0) return 0n
 
-  // MRR = average of monthly inbound revenue over available months
   const totalInbound = monthlyBuckets.reduce((acc, b) => acc + b.inbound, 0n)
   return totalInbound / BigInt(monthlyBuckets.length)
 }
@@ -299,22 +317,20 @@ const getLocalValuations = async (
   try {
     const { fetchMentoLocalParity } = await import('../../utils/mento')
     const quotes = await fetchMentoLocalParity(rpcUrl)
-    const oneUsd = 10n ** USDC_DECIMALS
+    const oneUsd = 10n ** 18n
 
     return quotes.map((quote) => {
-      // Scale: (amount * localRate) / 1 USDC_TOKEN
       const netFlowLocal = oneUsd > 0n ? (absBigInt(netFlow) * quote.amountOut) / oneUsd : 0n
       const mrrLocal = oneUsd > 0n ? (mrr * quote.amountOut) / oneUsd : 0n
 
       return {
         currency: quote.currency,
-        netFlowLocal: formatUsdc(netFlowLocal),
-        mrrLocal: formatUsdc(mrrLocal),
+        netFlowLocal: formatNormalizedAmount(netFlowLocal),
+        mrrLocal: formatNormalizedAmount(mrrLocal),
         quotedAt: quote.quotedAt,
       }
     })
   } catch {
-    // Mento SDK may fail on testnet; gracefully degrade
     return []
   }
 }
@@ -384,19 +400,19 @@ export async function GET(request: NextRequest) {
       periodStart: periodStart.toISOString(),
       periodEnd: now.toISOString(),
       summary: {
-        totalInbound: formatUsdc(totalInbound),
-        totalOutbound: formatUsdc(totalOutbound),
-        netFlow: formatUsdc(netFlow),
+        totalInbound: formatNormalizedAmount(totalInbound),
+        totalOutbound: formatNormalizedAmount(totalOutbound),
+        netFlow: formatNormalizedAmount(netFlow),
         transactionCount: transfers.length,
-        mrr: formatUsdc(mrr),
+        mrr: formatNormalizedAmount(mrr),
         churnVolatility,
         avgDaysBetweenDeposits: avgDays,
       },
       monthlyBreakdown: monthlyBuckets.map((b) => ({
         month: b.month,
-        inbound: formatUsdc(b.inbound),
-        outbound: formatUsdc(b.outbound),
-        net: formatUsdc(b.inbound - b.outbound),
+        inbound: formatNormalizedAmount(b.inbound),
+        outbound: formatNormalizedAmount(b.outbound),
+        net: formatNormalizedAmount(b.inbound - b.outbound),
         txCount: b.txCount,
       })),
       localValuation,
@@ -404,7 +420,7 @@ export async function GET(request: NextRequest) {
         hash: t.hash,
         from: t.from,
         to: t.to,
-        amount: formatUsdc(t.amount),
+        amount: formatNormalizedAmount(t.amount),
         timestamp: t.timestamp,
         direction: t.direction,
       })),
