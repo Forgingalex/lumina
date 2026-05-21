@@ -31,7 +31,7 @@ The Lumina core engine is officially deployed and verified on Celo Mainnet:
 
 | Contract | Address |
 | :--- | :--- |
-| **LuminaVault (Anchor)** | `0x92F849B5542656353efb979F3e1872187Cc7dC8E` |
+| **LuminaVault (Anchor)** | `0x962fc12bfA3D64e4Ea8c2F7CE92Ab9fCc064CCEF` |
 | **Operational Asset (USDC)** | `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` |
 | **Gas Adapter (CIP-64 USDC)** | `0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B` |
 

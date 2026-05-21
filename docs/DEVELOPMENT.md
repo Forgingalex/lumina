@@ -56,8 +56,8 @@ The core Lumina smart contracts are verified and public on the Celo block explor
 
 ### 3.1 Celo Mainnet Deployment
 *   **LuminaVault Contract:**
-    - Address: `0x92F849B5542656353efb979F3e1872187Cc7dC8E`
-    - CeloScan Link: [CeloScan LuminaVault](https://celoscan.io/address/0x92F849B5542656353efb979F3e1872187Cc7dC8E)
+    - Address: `0x962fc12bfA3D64e4Ea8c2F7CE92Ab9fCc064CCEF`
+    - CeloScan Link: [CeloScan LuminaVault](https://celoscan.io/address/0x962fc12bfA3D64e4Ea8c2F7CE92Ab9fCc064CCEF)
 *   **Target Token (USDC):**
     - Address: `0xcebA9300f2b948710d2653dD7B07f33A8B32118C`
     - CeloScan Link: [CeloScan USDC](https://celoscan.io/address/0xcebA9300f2b948710d2653dD7B07f33A8B32118C)
@@ -74,11 +74,11 @@ Developers can interact directly with the deployed contracts using standard CLI 
 ### Read Merchant Profile
 To query a merchant’s balance and reputation score:
 ```bash
-cast call 0x92F849B5542656353efb979F3e1872187Cc7dC8E "getMerchantProfile(address)" <MERCHANT_ADDRESS> --rpc-url https://forno.celo.org
+cast call 0x962fc12bfA3D64e4Ea8c2F7CE92Ab9fCc064CCEF "getMerchantProfile(address)" <MERCHANT_ADDRESS> --rpc-url https://forno.celo.org
 ```
 
 ### Validate ERC-20 Allowance
 To check the vault's spending approval limits:
 ```bash
-cast call 0xcebA9300f2b948710d2653dD7B07f33A8B32118C "allowance(address,address)" <MERCHANT_ADDRESS> 0x92F849B5542656353efb979F3e1872187Cc7dC8E --rpc-url https://forno.celo.org
+cast call 0xcebA9300f2b948710d2653dD7B07f33A8B32118C "allowance(address,address)" <MERCHANT_ADDRESS> 0x962fc12bfA3D64e4Ea8c2F7CE92Ab9fCc064CCEF --rpc-url https://forno.celo.org
 ```
